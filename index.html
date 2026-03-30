@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Pro - Management System</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        
+        /* Animations */
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+        
+        .animate-slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out;
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        
+        .sidebar-link {
+            position: relative;
+            overflow: hidden;
+        }
+        .sidebar-link::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 3px;
+            background: #2563eb;
+            transform: scaleY(0);
+            transition: transform 0.2s;
+        }
+        .sidebar-link.active::before {
+            transform: scaleY(1);
+        }
+        
+        /* Loading skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased">
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Mobile Header -->
+    <div class="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 z-40 flex items-center justify-between px-4">
+        <div class="flex items-center gap-2">
+            <div class="h-8 w-8 rounded-lg bg-primary-600 flex items-center justify-center text-white">
+                <i data-lucide="package" class="h-4 w-4"></i>
+            </div>
+            <span class="font-bold text-lg">Inventory Pro</span>
+        </div>
+        <button id="mobile-menu-btn" class="p-2 hover:bg-slate-100 rounded-lg">
+            <i data-lucide="menu" class="h-6 w-6"></i>
+        </button>
+    </div>
+
+    <div class="flex h-screen overflow-hidden pt-16 lg:pt-0">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-30 w-64 bg-white border-r border-slate-200 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 flex flex-col">
+            <div class="h-16 flex items-center px-6 border-b border-slate-200">
+                <div class="flex items-center gap-2.5">
+                    <div class="h-8 w-8 rounded-lg bg-primary-600 flex items-center justify-center text-white shadow-lg shadow-primary-500/30">
+                        <i data-lucide="package" class="h-4 w-4"></i>
+                    </div>
+                    <span class="font-bold text-lg tracking-tight">Inventory Pro</span>
+                </div>
+            </div>
+
+            <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+                <a href="#dashboard" class="sidebar-link active flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors bg-primary-50 text-primary-700" data-page="dashboard">
+                    <i data-lucide="layout-dashboard" class="h-4 w-4"></i>
+                    Dashboard
+                </a>
+                <a href="#products" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors" data-page="products">
+                    <i data-lucide="package" class="h-4 w-4"></i>
+                    Products
+                </a>
+                <a href="#categories" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors" data-page="categories">
+                    <i data-lucide="tags" class="h-4 w-4"></i>
+                    Categories
+                </a>
+                <a href="#movements" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors" data-page="movements">
+                    <i data-lucide="arrow-left-right" class="h-4 w-4"></i>
+                    Stock Movements
+                </a>
+                <a href="#analytics" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors" data-page="analytics">
+                    <i data-lucide="bar-chart-2" class="h-4 w-4"></i>
+                    Analytics
+                </a>
+            </nav>
+
+            <div class="p-4 border-t border-slate-200">
+                <div class="flex items-center gap-3 px-3 py-2 rounded-lg bg-slate-50">
+                    <div class="h-8 w-8 rounded-full bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                        AD
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-slate-900 truncate">Admin User</p>
+                        <p class="text-xs text-slate-500 truncate">admin@company.com</p>
+                    </div>
+                    <button onclick="app.logout()" class="p-1.5 hover:bg-slate-200 rounded-md transition-colors text-slate-400 hover:text-red-600">
+                        <i data-lucide="log-out" class="h-4 w-4"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Mobile Overlay -->
+        <div id="mobile-overlay" class="fixed inset-0 bg-black/50 z-20 hidden lg:hidden backdrop-blur-sm"></div>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto bg-slate-50/50">
+            <div class="p-4 lg:p-8 max-w-7xl mx-auto">
+                
+                <!-- Dashboard Page -->
+                <div id="page-dashboard" class="page-content space-y-6 animate-fade-in">
+                    <div class="flex flex-col gap-1">
+                        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Dashboard</h1>
+                        <p class="text-slate-500">Real-time overview of your inventory</p>
+                    </div>
+
+                    <!-- Stats Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-slate-500">Total Products</p>
+                                    <p class="text-3xl font-bold text-slate-900 mt-1" id="stat-total-products">0</p>
+                                    <p class="text-xs text-slate-400 mt-1"><span class="text-emerald-500 font-medium">↑ 12%</span> from last month</p>
+                                </div>
+                                <div class="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                                    <i data-lucide="package" class="h-5 w-5"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-slate-500">Inventory Value</p>
+                                    <p class="text-3xl font-bold text-slate-900 mt-1" id="stat-total-value">$0</p>
+                                    <p class="text-xs text-slate-400 mt-1">Based on current stock</p>
+                                </div>
+                                <div class="h-10 w-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+                                    <i data-lucide="dollar-sign" class="h-5 w-5"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-slate-500">Low Stock</p>
+                                    <p class="text-3xl font-bold text-amber-600 mt-1" id="stat-low-stock">0</p>
+                                    <p class="text-xs text-slate-400 mt-1">Requires attention</p>
+                                </div>
+                                <div class="h-10 w-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
+                                    <i data-lucide="alert-triangle" class="h-5 w-5"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-slate-500">Out of Stock</p>
+                                    <p class="text-3xl font-bold text-red-600 mt-1" id="stat-out-stock">0</p>
+                                    <p class="text-xs text-slate-400 mt-1">Critical items</p>
+                                </div>
+                                <div class="h-10 w-10 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
+                                    <i data-lucide="x-circle" class="h-5 w-5"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                            <h3 class="font-semibold text-slate-900 mb-4">Top Products by Value</h3>
+                            <canvas id="chart-top-products" height="250"></canvas>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                            <h3 class="font-semibold text-slate-900 mb-4">Stock Status Distribution</h3>
+                            <canvas id="chart-status" height="250"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+                            <h3 class="font-semibold text-slate-900">Recent Stock Movements</h3>
+                            <a href="#movements" class="text-sm text-primary-600 hover:text-primary-700 font-medium">View all</a>
+                        </div>
+                        <div id="recent-movements" class="divide-y divide-slate-200">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Products Page -->
+                <div id="page-products" class="page-content hidden space-y-6 animate-fade-in">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h1 class="text-2xl font-bold tracking-tight text-slate-900">Products</h1>
+                            <p class="text-slate-500" id="products-count">Loading...</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="app.openStockMovement()" class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+                                <i data-lucide="arrow-left-right" class="h-4 w-4"></i>
+                                Stock Movement
+                            </button>
+                            <button onclick="app.openProductModal()" class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors shadow-sm shadow-primary-500/30">
+                                <i data-lucide="plus" class="h-4 w-4"></i>
+                                Add Product
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Filters -->
+                    <div class="flex flex-col sm:flex-row gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <div class="relative flex-1">
+                            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400"></i>
+                            <input type="text" id="product-search" placeholder="Search products, SKU..." 
+                                class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        </div>
+                        <select id="category-filter" class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
+                            <option value="">All Categories</option>
+                        </select>
+                        <select id="status-filter" class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
+                            <option value="">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="low">Low Stock</option>
+                            <option value="out">Out of Stock</option>
+                        </select>
+                    </div>
+
+                    <!-- Table -->
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead class="bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Product</th>
+                                        <th class="px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Category</th>
+                                        <th class="px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Qty</th>
+                                        <th class="px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right hidden sm:table-cell">Price</th>
+                                        <th class="px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Status</th>
+                                        <th class="px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="products-table-body" class="divide-y divide-slate-200">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Pagination -->
+                        <div class="px-5 py-4 border-t border-slate-200 flex items-center justify-between bg-slate-50/50">
+                            <span class="text-sm text-slate-500" id="pagination-info">Showing 0-0 of 0</span>
+                            <div class="flex gap-2" id="pagination-controls">
+                                <!-- Populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Categories Page -->
+                <div id="page-categories" class="page-content hidden space-y-6 animate-fade-in">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h1 class="text-2xl font-bold tracking-tight text-slate-900">Categories</h1>
+                            <p class="text-slate-500">Organize your products</p>
+                        </div>
+                        <button onclick="app.openCategoryModal()" class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors shadow-sm shadow-primary-500/30">
+                            <i data-lucide="plus" class="h-4 w-4"></i>
+                            Add Category
+                        </button>
+                    </div>
+
+                    <div id="categories-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Stock Movements Page -->
+                <div id="page-movements" class="page-content hidden space-y-6 animate-fade-in">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h1 class="text-2xl font-bold tracking-tight text-slate-900">Stock Movements</h1>
+                            <p class="text-slate-500">Track all inventory changes</p>
+                        </div>
+                        <button onclick="app.openStockMovement()" class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors shadow-sm shadow-primary-500/30">
+                            <i data-lucide="plus" class="h-4 w-4"></i>
+                            Record Movement
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead class="bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Type</th>
+                                        <th class="px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Product</th>
+                                        <th class="px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Quantity</th>
+                                        <th class="px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Reference</th>
+                                        <th class="px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider hidden sm:table-cell">Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="movements-table-body" class="divide-y divide-slate-200">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Page -->
+                <div id="page-analytics" class="page-content hidden space-y-6 animate-fade-in">
+                    <div class="flex flex-col gap-1">
+                        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Analytics</h1>
+                        <p class="text-slate-500">Detailed inventory insights</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                            <h3 class="font-semibold text-slate-900 mb-4">Inventory Trends (30 Days)</h3>
+                            <canvas id="chart-trends" height="300"></canvas>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                            <h3 class="font-semibold text-slate-900 mb-4">Category Distribution</h3>
+                            <canvas id="chart-categories" height="300"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                        <h3 class="font-semibold text-slate-900 mb-4">Stock Turnover Analysis</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead class="bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Product</th>
+                                        <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Sold (30d)</th>
+                                        <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Current Stock</th>
+                                        <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Turnover Rate</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="turnover-table" class="divide-y divide-slate-200">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Product Modal -->
+    <div id="product-modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="app.closeProductModal()"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto pointer-events-auto animate-fade-in">
+                <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white">
+                    <h3 class="text-lg font-semibold text-slate-900" id="product-modal-title">Add Product</h3>
+                    <button onclick="app.closeProductModal()" class="p-1 hover:bg-slate-100 rounded-lg transition-colors">
+                        <i data-lucide="x" class="h-5 w-5 text-slate-500"></i>
+                    </button>
+                </div>
+                <form id="product-form" class="p-6 space-y-4">
+                    <input type="hidden" id="product-id">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="space-y-1.5">
+                            <label class="text-sm font-medium text-slate-700">Product Name <span class="text-red-500">*</span></label>
+                            <input type="text" id="prod-name" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="text-sm font-medium text-slate-700">SKU <span class="text-red-500">*</span></label>
+                            <input type="text" id="prod-sku" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="space-y-1.5">
+                            <label class="text-sm font-medium text-slate-700">Category</label>
+                            <select id="prod-category" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white">
+                                <option value="">Select category</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="text-sm font-medium text-slate-700">Status</label>
+                            <select id="prod-status" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white">
+                                <option value="active">Active</option>
+                                <option value="discontinued">Discontinued</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-sm font-medium text-slate-700">Description</label>
+                        <input type="text" id="prod-desc" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    </div>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="space-y-1.5">
+                            <label class="text-sm font-medium text-slate-700">Quantity <span class="text-red-500">*</span></label>
+                            <input type="number" id="prod-qty" required min="0" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="text-sm font-medium text-slate-700">Unit Price <span class="text-red-500">*</span></label>
+                            <input type="number" id="prod-price" required min="0" step="0.01" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="text-sm font-medium text-slate-700">Cost Price</label>
+                            <input type="number" id="prod-cost" min="0" step="0.01" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1.5">
+                            <label class="text-sm font-medium text-slate-700">Reorder Level</label>
+                            <input type="number" id="prod-reorder" min="0" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="text-sm font-medium text-slate-700">Location</label>
+                            <input type="text" id="prod-location" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        </div>
+                    </div>
+                    <div class="pt-4 flex justify-end gap-3">
+                        <button type="button" onclick="app.closeProductModal()" class="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors shadow-sm shadow-primary-500/30">Save Product</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stock Movement Modal -->
+    <div id="movement-modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="app.closeMovementModal()"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-md pointer-events-auto animate-fade-in">
+                <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-slate-900">Record Stock Movement</h3>
+                    <button onclick="app.closeMovementModal()" class="p-1 hover:bg-slate-100 rounded-lg transition-colors">
+                        <i data-lucide="x" class="h-5 w-5 text-slate-500"></i>
+                    </button>
+                </div>
+                <form id="movement-form" class="p-6 space-y-4">
+                    <div class="space-y-1.5">
+                        <label class="text-sm font-medium text-slate-700">Product <span class="text-red-500">*</span></label>
+                        <select id="mov-product" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white">
+                            <option value="">Select product</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1.5">
+                            <label class="text-sm font-medium text-slate-700">Movement Type</label>
+                            <select id="mov-type" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white">
+                                <option value="stock_in">Stock In</option>
+                                <option value="stock_out">Stock Out</option>
+                                <option value="adjustment">Adjustment</option>
+                                <option value="return">Return</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="text-sm font-medium text-slate-700">Quantity <span class="text-red-500">*</span></label>
+                            <input type="number" id="mov-qty" required min="1" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        </div>
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-sm font-medium text-slate-700">Reference / Note</label>
+                        <input type="text" id="mov-ref" placeholder="PO number, reason, etc." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    </div>
+                    <div class="pt-4 flex justify-end gap-3">
+                        <button type="button" onclick="app.closeMovementModal()" class="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors shadow-sm shadow-primary-500/30">Record Movement</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Modal -->
+    <div id="category-modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="app.closeCategoryModal()"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-sm pointer-events-auto animate-fade-in">
+                <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-slate-900" id="cat-modal-title">Add Category</h3>
+                    <button onclick="app.closeCategoryModal()" class="p-1 hover:bg-slate-100 rounded-lg transition-colors">
+                        <i data-lucide="x" class="h-5 w-5 text-slate-500"></i>
+                    </button>
+                </div>
+                <form id="category-form" class="p-6 space-y-4">
+                    <input type="hidden" id="cat-id">
+                    <div class="space-y-1.5">
+                        <label class="text-sm font-medium text-slate-700">Name <span class="text-red-500">*</span></label>
+                        <input type="text" id="cat-name" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-sm font-medium text-slate-700">Description</label>
+                        <input type="text" id="cat-desc" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-sm font-medium text-slate-700">Color</label>
+                        <div class="flex gap-2">
+                            <input type="color" id="cat-color" value="#6366f1" class="h-10 w-20 rounded border border-slate-300 cursor-pointer">
+                            <input type="text" id="cat-color-text" value="#6366f1" class="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent uppercase">
+                        </div>
+                    </div>
+                    <div class="pt-4 flex justify-end gap-3">
+                        <button type="button" onclick="app.closeCategoryModal()" class="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors shadow-sm shadow-primary-500/30">Save Category</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Inventory Management Application
+        const app = {
+            data: {
+                products: [],
+                categories: [],
+                movements: [],
+                currentPage: 1,
+                itemsPerPage: 10,
+                searchQuery: '',
+                categoryFilter: '',
+                statusFilter: '',
+                editingProduct: null,
+                editingCategory: null,
+                charts: {}
+            },
+
+            init() {
+                this.generateMockData();
+                this.setupEventListeners();
+                this.setupNavigation();
+                this.renderCategories();
+                this.renderProducts();
+                this.renderMovements();
+                this.updateDashboard();
+                lucide.createIcons();
+            },
+
+            generateMockData() {
+                // Generate categories
+                this.data.categories = [
+                    { id: '1', name: 'Electronics', description: 'Electronic devices and accessories', color: '#6366f1' },
+                    { id: '2', name: 'Office Supplies', description: 'Office stationery and supplies', color: '#10b981' },
+                    { id: '3', name: 'Furniture', description: 'Office furniture and fixtures', color: '#f59e0b' },
+                    { id: '4', name: 'Software', description: 'Digital licenses and software', color: '#8b5cf6' }
+                ];
+
+                // Generate products
+                const productNames = [
+                    ['Wireless Mouse', 'Electronics', 45, 29.99, 15],
+                    ['Mechanical Keyboard', 'Electronics', 12, 89.99, 10],
+                    ['USB-C Cable', 'Electronics', 150, 12.99, 50],
+                    ['Monitor 27"', 'Electronics', 8, 299.99, 5],
+                    ['Webcam HD', 'Electronics', 3, 79.99, 10],
+                    ['A4 Paper (500)', 'Office Supplies', 200, 5.99, 100],
+                    ['Sticky Notes', 'Office Supplies', 75, 3.49, 30],
+                    ['Desk Chair', 'Furniture', 15, 249.99, 5],
+                    ['Standing Desk', 'Furniture', 7, 449.99, 3],
+                    ['Filing Cabinet', 'Furniture', 12, 129.99, 5],
+                    ['Office 365 License', 'Software', 50, 99.99, 20],
+                    ['Adobe Creative Suite', 'Software', 25, 599.99, 10],
+                    ['VPN Subscription', 'Software', 100, 9.99, 50],
+                    ['Wireless Headphones', 'Electronics', 20, 149.99, 10],
+                    ['Laptop Stand', 'Electronics', 30, 45.99, 15]
+                ];
+
+                this.data.products = productNames.map((p, i) => ({
+                    id: `prod-${i}`,
+                    name: p[0],
+                    sku: `SKU-${1000 + i}`,
+                    category: p[1],
+                    quantity: p[2],
+                    unit_price: p[3],
+                    cost_price: p[3] * 0.6,
+                    reorder_level: p[4],
+                    location: ['Warehouse A', 'Warehouse B', 'Store'][i % 3],
+                    status: p[2] === 0 ? 'out' : p[2] <= p[4] ? 'low' : 'active',
+                    description: `High-quality ${p[0].toLowerCase()} for professional use`,
+                    created_at: new Date(Date.now() - Math.random() * 10000000000).toISOString()
+                }));
+
+                // Generate movements
+                this.data.movements = [];
+                const types = ['stock_in', 'stock_out', 'return', 'adjustment'];
+                for (let i = 0; i < 20; i++) {
+                    const product = this.data.products[Math.floor(Math.random() * this.data.products.length)];
+                    this.data.movements.push({
+                        id: `mov-${i}`,
+                        product_id: product.id,
+                        product_name: product.name,
+                        type: types[Math.floor(Math.random() * types.length)],
+                        quantity: Math.floor(Math.random() * 20) + 1,
+                        reference: `REF-${1000 + i}`,
+                        created_at: new Date(Date.now() - Math.random() * 1000000000).toISOString()
+                    });
+                }
+                this.data.movements.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            },
+
+            setupEventListeners() {
+                // Search and filters
+                document.getElementById('product-search').addEventListener('input', (e) => {
+                    this.data.searchQuery = e.target.value.toLowerCase();
+                    this.data.currentPage = 1;
+                    this.renderProducts();
+                });
+
+                document.getElementById('category-filter').addEventListener('change', (e) => {
+                    this.data.categoryFilter = e.target.value;
+                    this.data.currentPage = 1;
+                    this.renderProducts();
+                });
+
+                document.getElementById('status-filter').addEventListener('change', (e) => {
+                    this.data.statusFilter = e.target.value;
+                    this.data.currentPage = 1;
+                    this.renderProducts();
+                });
+
+                // Forms
+                document.getElementById('product-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.saveProduct();
+                });
+
+                document.getElementById('movement-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.saveMovement();
+                });
+
+                document.getElementById('category-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.saveCategory();
+                });
+
+                // Color picker sync
+                document.getElementById('cat-color').addEventListener('input', (e) => {
+                    document.getElementById('cat-color-text').value = e.target.value;
+                });
+                document.getElementById('cat-color-text').addEventListener('input', (e) => {
+                    document.getElementById('cat-color').value = e.target.value;
+                });
+
+                // Mobile menu
+                document.getElementById('mobile-menu-btn').addEventListener('click', () => {
+                    document.getElementById('sidebar').classList.remove('-translate-x-full');
+                    document.getElementById('mobile-overlay').classList.remove('hidden');
+                });
+
+                document.getElementById('mobile-overlay').addEventListener('click', () => {
+                    document.getElementById('sidebar').classList.add('-translate-x-full');
+                    document.getElementById('mobile-overlay').classList.add('hidden');
+                });
+            },
+
+            setupNavigation() {
+                document.querySelectorAll('.sidebar-link').forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const page = link.dataset.page;
+                        this.navigateTo(page);
+                        
+                        // Update active state
+                        document.querySelectorAll('.sidebar-link').forEach(l => {
+                            l.classList.remove('active', 'bg-primary-50', 'text-primary-700');
+                            l.classList.add('text-slate-600');
+                        });
+                        link.classList.add('active', 'bg-primary-50', 'text-primary-700');
+                        link.classList.remove('text-slate-600');
+                        
+                        // Close mobile menu
+                        document.getElementById('sidebar').classList.add('-translate-x-full');
+                        document.getElementById('mobile-overlay').classList.add('hidden');
+                    });
+                });
+            },
+
+            navigateTo(page) {
+                document.querySelectorAll('.page-content').forEach(p => p.classList.add('hidden'));
+                document.getElementById(`page-${page}`).classList.remove('hidden');
+                
+                if (page === 'analytics') {
+                    setTimeout(() => this.renderAnalytics(), 100);
+                }
+            },
+
+            // Toast Notification System
+            showToast(message, type = 'success', duration = 5000) {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                const colors = {
+                    success: 'border-l-4 border-emerald-500 bg-white',
+                    error: 'border-l-4 border-red-500 bg-white',
+                    warning: 'border-l-4 border-amber-500 bg-white',
+                    info: 'border-l-4 border-blue-500 bg-white'
+                };
+                const icons = {
+                    success: '<i data-lucide="check-circle" class="h-5 w-5 text-emerald-500"></i>',
+                    error: '<i data-lucide="alert-circle" class="h-5 w-5 text-red-500"></i>',
+                    warning: '<i data-lucide="alert-triangle" class="h-5 w-5 text-amber-500"></i>',
+                    info: '<i data-lucide="info" class="h-5 w-5 text-blue-500"></i>'
+                };
+                
+                toast.className = `pointer-events-auto flex items-start gap-3 p-4 rounded-lg shadow-lg min-w-[300px] max-w-[400px] animate-slide-in ${colors[type]}`;
+                toast.innerHTML = `
+                    ${icons[type]}
+                    <div class="flex-1">
+                        <p class="text-sm font-medium text-slate-900">${message}</p>
+                    </div>
+                    <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-slate-600">
+                        <i data-lucide="x" class="h-4 w-4"></i>
+                    </button>
+                `;
+                
+                container.appendChild(toast);
+                lucide.createIcons();
+                
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateX(100%)';
+                    toast.style.transition = 'all 0.3s';
+                    setTimeout(() => toast.remove(), 300);
+                }, duration);
+            },
+
+            // Product Management
+            getFilteredProducts() {
+                return this.data.products.filter(p => {
+                    const matchesSearch = !this.data.searchQuery || 
+                        p.name.toLowerCase().includes(this.data.searchQuery) || 
+                        p.sku.toLowerCase().includes(this.data.searchQuery);
+                    const matchesCategory = !this.data.categoryFilter || p.category === this.data.categoryFilter;
+                    const matchesStatus = !this.data.statusFilter || p.status === this.data.statusFilter;
+                    return matchesSearch && matchesCategory && matchesStatus;
+                });
+            },
+
+            renderProducts() {
+                const filtered = this.getFilteredProducts();
+                const totalPages = Math.ceil(filtered.length / this.data.itemsPerPage);
+                const start = (this.data.currentPage - 1) * this.data.itemsPerPage;
+                const end = start + this.data.itemsPerPage;
+                const pageItems = filtered.slice(start, end);
+                
+                const tbody = document.getElementById('products-table-body');
+                tbody.innerHTML = '';
+                
+                if (pageItems.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="px-5 py-12 text-center text-slate-500">No products found</td></tr>`;
+                } else {
+                    pageItems.forEach(p => {
+                        const statusColors = {
+                            active: 'bg-emerald-100 text-emerald-700',
+                            low: 'bg-amber-100 text-amber-700',
+                            out: 'bg-red-100 text-red-700',
+                            discontinued: 'bg-slate-100 text-slate-600'
+                        };
+                        const statusLabels = {
+                            active: 'Active',
+                            low: 'Low Stock',
+                            out: 'Out of Stock',
+                            discontinued: 'Discontinued'
+                        };
+                        
+                        const row = document.createElement('tr');
+                        row.className = 'hover:bg-slate-50 transition-colors';
+                        row.innerHTML = `
+                            <td class="px-5 py-3.5">
+                                <div class="flex items-center gap-3">
+                                    <div class="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">
+                                        <i data-lucide="package" class="h-4 w-4"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-slate-900">${p.name}</p>
+                                        <p class="text-xs text-slate-500">${p.sku}</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-5 py-3.5 hidden md:table-cell">
+                                <span class="text-sm text-slate-600">${p.category}</span>
+                            </td>
+                            <td class="px-5 py-3.5 text-right">
+                                <span class="text-sm font-semibold ${p.quantity <= p.reorder_level ? 'text-amber-600' : 'text-slate-900'}">${p.quantity}</span>
+                            </td>
+                            <td class="px-5 py-3.5 text-right hidden sm:table-cell">
+                                <span class="text-sm text-slate-900">$${p.unit_price.toFixed(2)}</span>
+                            </td>
+                            <td class="px-5 py-3.5 text-center">
+                                <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[p.status]}">
+                                    ${statusLabels[p.status]}
+                                </span>
+                            </td>
+                            <td class="px-5 py-3.5 text-right">
+                                <div class="flex items-center justify-end gap-1">
+                                    <button onclick="app.openStockMovement('${p.id}')" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors" title="Stock Movement">
+                                        <i data-lucide="arrow-left-right" class="h-3.5 w-3.5"></i>
+                                    </button>
+                                    <button onclick="app.editProduct('${p.id}')" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors" title="Edit">
+                                        <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
+                                    </button>
+                                    <button onclick="app.deleteProduct('${p.id}')" class="p-1.5 hover:bg-red-50 rounded-lg text-red-500 transition-colors" title="Delete">
+                                        <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                }
+                
+                // Update pagination
+                document.getElementById('pagination-info').textContent = `Showing ${filtered.length > 0 ? start + 1 : 0}-${Math.min(end, filtered.length)} of ${filtered.length}`;
+                document.getElementById('products-count').textContent = `${filtered.length} products in inventory`;
+                
+                const controls = document.getElementById('pagination-controls');
+                controls.innerHTML = '';
+                
+                if (totalPages > 1) {
+                    const prevBtn = document.createElement('button');
+                    prevBtn.className = `px-3 py-1.5 rounded-lg text-sm font-medium border ${this.data.currentPage === 1 ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`;
+                    prevBtn.innerHTML = '<i data-lucide="chevron-left" class="h-4 w-4"></i>';
+                    prevBtn.disabled = this.data.currentPage === 1;
+                    prevBtn.onclick = () => {
+                        if (this.data.currentPage > 1) {
+                            this.data.currentPage--;
+                            this.renderProducts();
+                        }
+                    };
+                    controls.appendChild(prevBtn);
+                    
+                    for (let i = 1; i <= totalPages; i++) {
+                        if (i === 1 || i === totalPages || (i >= this.data.currentPage - 1 && i <= this.data.currentPage + 1)) {
+                            const btn = document.createElement('button');
+                            btn.className = `px-3 py-1.5 rounded-lg text-sm font-medium ${i === this.data.currentPage ? 'bg-primary-600 text-white' : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'}`;
+                            btn.textContent = i;
+                            btn.onclick = () => {
+                                this.data.currentPage = i;
+                                this.renderProducts();
+                            };
+                            controls.appendChild(btn);
+                        } else if (i === this.data.currentPage - 2 || i === this.data.currentPage + 2) {
+                            const span = document.createElement('span');
+                            span.className = 'px-2 text-slate-400';
+                            span.textContent = '...';
+                            controls.appendChild(span);
+                        }
+                    }
+                    
+                    const nextBtn = document.createElement('button');
+                    nextBtn.className = `px-3 py-1.5 rounded-lg text-sm font-medium border ${this.data.currentPage === totalPages ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`;
+                    nextBtn.innerHTML = '<i data-lucide="chevron-right" class="h-4 w-4"></i>';
+                    nextBtn.disabled = this.data.currentPage === totalPages;
+                    nextBtn.onclick = () => {
+                        if (this.data.currentPage < totalPages) {
+                            this.data.currentPage++;
+                            this.renderProducts();
+                        }
+                    };
+                    controls.appendChild(nextBtn);
+                }
+                
+                // Update filter dropdowns
+                const catSelect = document.getElementById('category-filter');
+                const currentCat = catSelect.value;
+                catSelect.innerHTML = '<option value="">All Categories</option>';
+                this.data.categories.forEach(c => {
+                    catSelect.innerHTML += `<option value="${c.name}">${c.name}</option>`;
+                });
+                catSelect.value = currentCat;
+                
+                lucide.createIcons();
+            },
+
+            openProductModal(productId = null) {
+                this.data.editingProduct = productId;
+                document.getElementById('product-modal-title').textContent = productId ? 'Edit Product' : 'Add Product';
+                
+                if (productId) {
+                    const p = this.data.products.find(x => x.id === productId);
+                    document.getElementById('product-id').value = p.id;
+                    document.getElementById('prod-name').value = p.name;
+                    document.getElementById('prod-sku').value = p.sku;
+                    document.getElementById('prod-category').value = p.category;
+                    document.getElementById('prod-status').value = p.status === 'out' || p.status === 'low' ? 'active' : p.status;
+                    document.getElementById('prod-desc').value = p.description || '';
+                    document.getElementById('prod-qty').value = p.quantity;
+                    document.getElementById('prod-price').value = p.unit_price;
+                    document.getElementById('prod-cost').value = p.cost_price || '';
+                    document.getElementById('prod-reorder').value = p.reorder_level;
+                    document.getElementById('prod-location').value = p.location || '';
+                } else {
+                    document.getElementById('product-form').reset();
+                    document.getElementById('product-id').value = '';
+                }
+                
+                // Populate category select
+                const catSelect = document.getElementById('prod-category');
+                catSelect.innerHTML = '<option value="">Select category</option>';
+                this.data.categories.forEach(c => {
+                    catSelect.innerHTML += `<option value="${c.name}">${c.name}</option>`;
+                });
+                
+                document.getElementById('product-modal').classList.remove('hidden');
+            },
+
+            closeProductModal() {
+                document.getElementById('product-modal').classList.add('hidden');
+                this.data.editingProduct = null;
+            },
+
+            saveProduct() {
+                const id = document.getElementById('product-id').value;
+                const qty = parseInt(document.getElementById('prod-qty').value) || 0;
+                const reorder = parseInt(document.getElementById('prod-reorder').value) || 0;
+                
+                const product = {
+                    id: id || `prod-${Date.now()}`,
+                    name: document.getElementById('prod-name').value,
+                    sku: document.getElementById('prod-sku').value,
+                    category: document.getElementById('prod-category').value,
+                    description: document.getElementById('prod-desc').value,
+                    quantity: qty,
+                    unit_price: parseFloat(document.getElementById('prod-price').value) || 0,
+                    cost_price: parseFloat(document.getElementById('prod-cost').value) || 0,
+                    reorder_level: reorder,
+                    location: document.getElementById('prod-location').value,
+                    status: qty === 0 ? 'out' : qty <= reorder ? 'low' : document.getElementById('prod-status').value,
+                    created_at: id ? this.data.products.find(p => p.id === id).created_at : new Date().toISOString()
+                };
+                
+                if (id) {
+                    const idx = this.data.products.findIndex(p => p.id === id);
+                    this.data.products[idx] = product;
+                    this.showToast('Product updated successfully');
+                } else {
+                    this.data.products.push(product);
+                    this.showToast('Product created successfully');
+                }
+                
+                this.closeProductModal();
+                this.renderProducts();
+                this.updateDashboard();
+            },
+
+            editProduct(id) {
+                this.openProductModal(id);
+            },
+
+            deleteProduct(id) {
+                if (confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
+                    this.data.products = this.data.products.filter(p => p.id !== id);
+                    this.showToast('Product deleted successfully', 'warning');
+                    this.renderProducts();
+                    this.updateDashboard();
+                }
+            },
+
+            // Stock Movements
+            openStockMovement(productId = null) {
+                document.getElementById('movement-form').reset();
+                
+                const select = document.getElementById('mov-product');
+                select.innerHTML = '<option value="">Select product</option>';
+                this.data.products.forEach(p => {
+                    select.innerHTML += `<option value="${p.id}">${p.name} (${p.sku})</option>`;
+                });
+                
+                if (productId) select.value = productId;
+                
+                document.getElementById('movement-modal').classList.remove('hidden');
+            },
+
+            closeMovementModal() {
+                document.getElementById('movement-modal').classList.add('hidden');
+            },
+
+            saveMovement() {
+                const productId = document.getElementById('mov-product').value;
+                const type = document.getElementById('mov-type').value;
+                const qty = parseInt(document.getElementById('mov-qty').value) || 0;
+                
+                const product = this.data.products.find(p => p.id === productId);
+                if (!product) return;
+                
+                let newQty = product.quantity;
+                if (type === 'stock_in' || type === 'return') newQty += qty;
+                else if (type === 'stock_out') newQty = Math.max(0, newQty - qty);
+                else if (type === 'adjustment') newQty = qty;
+                
+                // Update product
+                product.quantity = newQty;
+                product.status = newQty === 0 ? 'out' : newQty <= product.reorder_level ? 'low' : 'active';
+                
+                // Create movement record
+                this.data.movements.unshift({
+                    id: `mov-${Date.now()}`,
+                    product_id: product.id,
+                    product_name: product.name,
+                    type: type,
+                    quantity: qty,
+                    reference: document.getElementById('mov-ref').value,
+                    created_at: new Date().toISOString()
+                });
+                
+                this.showToast(`Stock ${type.replace('_', ' ')} recorded successfully`);
+                this.closeMovementModal();
+                this.renderProducts();
+                this.renderMovements();
+                this.updateDashboard();
+            },
+
+            renderMovements() {
+                const tbody = document.getElementById('movements-table-body');
+                tbody.innerHTML = '';
+                
+                const typeConfig = {
+                    stock_in: { label: 'Stock In', icon: 'arrow-down-left', color: 'text-emerald-600 bg-emerald-50' },
+                    stock_out: { label: 'Stock Out', icon: 'arrow-up-right', color: 'text-red-600 bg-red-50' },
+                    adjustment: { label: 'Adjustment', icon: 'refresh-cw', color: 'text-blue-600 bg-blue-50' },
+                    return: { label: 'Return', icon: 'rotate-ccw', color: 'text-amber-600 bg-amber-50' }
+                };
+                
+                this.data.movements.slice(0, 50).forEach(m => {
+                    const config = typeConfig[m.type];
+                    const date = new Date(m.created_at);
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-slate-50 transition-colors';
+                    row.innerHTML = `
+                        <td class="px-5 py-3.5">
+                            <div class="flex items-center gap-2">
+                                <div class="h-8 w-8 rounded-lg ${config.color} flex items-center justify-center">
+                                    <i data-lucide="${config.icon}" class="h-3.5 w-3.5"></i>
+                                </div>
+                                <span class="text-sm font-medium text-slate-900">${config.label}</span>
+                            </div>
+                        </td>
+                        <td class="px-5 py-3.5 text-sm text-slate-900">${m.product_name}</td>
+                        <td class="px-5 py-3.5 text-right text-sm font-semibold text-slate-900">${m.quantity}</td>
+                        <td class="px-5 py-3.5 text-sm text-slate-500 hidden md:table-cell">${m.reference || '—'}</td>
+                        <td class="px-5 py-3.5 text-sm text-slate-500 hidden sm:table-cell">${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                
+                // Recent movements for dashboard
+                const recentContainer = document.getElementById('recent-movements');
+                recentContainer.innerHTML = '';
+                this.data.movements.slice(0, 5).forEach(m => {
+                    const config = typeConfig[m.type];
+                    const date = new Date(m.created_at);
+                    recentContainer.innerHTML += `
+                        <div class="px-5 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <div class="h-8 w-8 rounded-lg ${config.color} flex items-center justify-center">
+                                    <i data-lucide="${config.icon}" class="h-3.5 w-3.5"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-slate-900">${m.product_name}</p>
+                                    <p class="text-xs text-slate-500 capitalize">${m.type.replace('_', ' ')}</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm font-semibold text-slate-900">${m.quantity} units</p>
+                                <p class="text-xs text-slate-400">${date.toLocaleDateString()}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                lucide.createIcons();
+            },
+
+            // Categories
+            renderCategories() {
+                const grid = document.getElementById('categories-grid');
+                grid.innerHTML = '';
+                
+                if (this.data.categories.length === 0) {
+                    grid.innerHTML = `
+                        <div class="col-span-full bg-white rounded-xl border border-slate-200 p-12 text-center">
+                            <i data-lucide="tags" class="h-12 w-12 text-slate-300 mx-auto mb-3"></i>
+                            <p class="text-slate-500">No categories yet. Create your first one!</p>
+                        </div>
+                    `;
+                } else {
+                    this.data.categories.forEach(c => {
+                        const count = this.data.products.filter(p => p.category === c.name).length;
+                        const card = document.createElement('div');
+                        card.className = 'bg-white rounded-xl border border-slate-200 p-5 hover:shadow-md transition-shadow cursor-pointer';
+                        card.innerHTML = `
+                            <div class="flex items-start justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="h-10 w-10 rounded-lg flex items-center justify-center" style="background-color: ${c.color}20">
+                                        <i data-lucide="tag" class="h-5 w-5" style="color: ${c.color}"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-semibold text-slate-900">${c.name}</h3>
+                                        <p class="text-xs text-slate-500">${count} products</p>
+                                    </div>
+                                </div>
+                                <div class="flex gap-1">
+                                    <button onclick="event.stopPropagation(); app.editCategory('${c.id}')" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors">
+                                        <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
+                                    </button>
+                                    <button onclick="event.stopPropagation(); app.deleteCategory('${c.id}')" class="p-1.5 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-600 transition-colors">
+                                        <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            ${c.description ? `<p class="mt-3 text-sm text-slate-600 line-clamp-2">${c.description}</p>` : ''}
+                        `;
+                        grid.appendChild(card);
+                    });
+                }
+                
+                lucide.createIcons();
+            },
+
+            openCategoryModal(categoryId = null) {
+                this.data.editingCategory = categoryId;
+                document.getElementById('cat-modal-title').textContent = categoryId ? 'Edit Category' : 'Add Category';
+                
+                if (categoryId) {
+                    const c = this.data.categories.find(x => x.id === categoryId);
+                    document.getElementById('cat-id').value = c.id;
+                    document.getElementById('cat-name').value = c.name;
+                    document.getElementById('cat-desc').value = c.description || '';
+                    document.getElementById('cat-color').value = c.color;
+                    document.getElementById('cat-color-text').value = c.color;
+                } else {
+                    document.getElementById('category-form').reset();
+                    document.getElementById('cat-id').value = '';
+                    document.getElementById('cat-color').value = '#6366f1';
+                    document.getElementById('cat-color-text').value = '#6366f1';
+                }
+                
+                document.getElementById('category-modal').classList.remove('hidden');
+            },
+
+            closeCategoryModal() {
+                document.getElementById('category-modal').classList.add('hidden');
+                this.data.editingCategory = null;
+            },
+
+            saveCategory() {
+                const id = document.getElementById('cat-id').value;
+                const category = {
+                    id: id || `cat-${Date.now()}`,
+                    name: document.getElementById('cat-name').value,
+                    description: document.getElementById('cat-desc').value,
+                    color: document.getElementById('cat-color').value
+                };
+                
+                if (id) {
+                    const idx = this.data.categories.findIndex(c => c.id === id);
+                    this.data.categories[idx] = category;
+                    this.showToast('Category updated successfully');
+                } else {
+                    this.data.categories.push(category);
+                    this.showToast('Category created successfully');
+                }
+                
+                this.closeCategoryModal();
+                this.renderCategories();
+                this.renderProducts(); // Update category filters
+            },
+
+            editCategory(id) {
+                this.openCategoryModal(id);
+            },
+
+            deleteCategory(id) {
+                if (confirm('Delete this category? Products in this category will become uncategorized.')) {
+                    this.data.categories = this.data.categories.filter(c => c.id !== id);
+                    this.showToast('Category deleted', 'warning');
+                    this.renderCategories();
+                }
+            },
+
+            // Dashboard & Analytics
+            updateDashboard() {
+                const products = this.data.products;
+                const totalProducts = products.length;
+                const totalValue = products.reduce((sum, p) => sum + (p.quantity * p.unit_price), 0);
+                const lowStock = products.filter(p => p.status === 'low').length;
+                const outStock = products.filter(p => p.status === 'out').length;
+                
+                // Animate numbers
+                this.animateNumber('stat-total-products', totalProducts);
+                this.animateNumber('stat-total-value', `$${totalValue.toLocaleString()}`);
+                this.animateNumber('stat-low-stock', lowStock, 'text-amber-600');
+                this.animateNumber('stat-out-stock', outStock, 'text-red-600');
+                
+                // Update charts
+                this.updateCharts();
+            },
+
+            animateNumber(elementId, target, colorClass = null) {
+                const el = document.getElementById(elementId);
+                if (colorClass) el.className = `text-3xl font-bold mt-1 ${colorClass}`;
+                
+                if (typeof target === 'string') {
+                    el.textContent = target;
+                    return;
+                }
+                
+                let current = 0;
+                const increment = target / 20;
+                const timer = setInterval(() => {
+                    current += increment;
+                    if (current >= target) {
+                        el.textContent = Math.floor(target);
+                        clearInterval(timer);
+                    } else {
+                        el.textContent = Math.floor(current);
+                    }
+                }, 25);
+            },
+
+            updateCharts() {
+                // Destroy existing charts
+                Object.values(this.data.charts).forEach(chart => chart.destroy());
+                
+                // Top Products Chart
+                const topProducts = [...this.data.products]
+                    .sort((a, b) => (b.quantity * b.unit_price) - (a.quantity * a.unit_price))
+                    .slice(0, 6);
+                
+                const ctx1 = document.getElementById('chart-top-products').getContext('2d');
+                this.data.charts.topProducts = new Chart(ctx1, {
+                    type: 'bar',
+                    data: {
+                        labels: topProducts.map(p => p.name.length > 15 ? p.name.substring(0, 15) + '...' : p.name),
+                        datasets: [{
+                            label: 'Inventory Value ($)',
+                            data: topProducts.map(p => (p.quantity * p.unit_price).toFixed(2)),
+                            backgroundColor: '#3b82f6',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+                            x: { grid: { display: false } }
+                        }
+                    }
+                });
+                
+                // Status Distribution
+                const statusCounts = {
+                    active: this.data.products.filter(p => p.status === 'active').length,
+                    low: this.data.products.filter(p => p.status === 'low').length,
+                    out: this.data.products.filter(p => p.status === 'out').length
+                };
+                
+                const ctx2 = document.getElementById('chart-status').getContext('2d');
+                this.data.charts.status = new Chart(ctx2, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Active', 'Low Stock', 'Out of Stock'],
+                        datasets: [{
+                            data: [statusCounts.active, statusCounts.low, statusCounts.out],
+                            backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '70%',
+                        plugins: {
+                            legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } }
+                        }
+                    }
+                });
+            },
+
+            renderAnalytics() {
+                // Trends Chart (mock data for last 30 days)
+                const days = Array.from({length: 30}, (_, i) => {
+                    const d = new Date();
+                    d.setDate(d.getDate() - (29 - i));
+                    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                });
+                
+                const stockLevels = days.map(() => Math.floor(Math.random() * 50) + 100);
+                
+                const ctx1 = document.getElementById('chart-trends').getContext('2d');
+                new Chart(ctx1, {
+                    type: 'line',
+                    data: {
+                        labels: days.filter((_, i) => i % 5 === 0),
+                        datasets: [{
+                            label: 'Stock Level',
+                            data: stockLevels.filter((_, i) => i % 5 === 0),
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { intersect: false, mode: 'index' },
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: false, grid: { color: '#f1f5f9' } },
+                            x: { grid: { display: false } }
+                        }
+                    }
+                });
+                
+                // Category Distribution
+                const categoryData = this.data.categories.map(c => ({
+                    name: c.name,
+                    count: this.data.products.filter(p => p.category === c.name).length,
+                    color: c.color
+                }));
+                
+                const ctx2 = document.getElementById('chart-categories').getContext('2d');
+                new Chart(ctx2, {
+                    type: 'pie',
+                    data: {
+                        labels: categoryData.map(c => c.name),
+                        datasets: [{
+                            data: categoryData.map(c => c.count),
+                            backgroundColor: categoryData.map(c => c.color)
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'right', labels: { usePointStyle: true } }
+                        }
+                    }
+                });
+                
+                // Turnover Table
+                const tbody = document.getElementById('turnover-table');
+                tbody.innerHTML = '';
+                this.data.products.slice(0, 10).forEach(p => {
+                    const sold = Math.floor(Math.random() * p.quantity);
+                    const turnover = ((sold / p.quantity) * 100).toFixed(1);
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-5 py-3 text-sm text-slate-900">${p.name}</td>
+                            <td class="px-5 py-3 text-sm text-slate-900 text-right">${sold}</td>
+                            <td class="px-5 py-3 text-sm text-slate-900 text-right">${p.quantity}</td>
+                            <td class="px-5 py-3 text-sm text-right">
+                                <span class="inline-flex px-2 py-1 rounded-full text-xs font-medium ${turnover > 50 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}">
+                                    ${turnover}%
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                });
+            },
+
+            logout() {
+                if (confirm('Are you sure you want to logout?')) {
+                    this.showToast('Logged out successfully', 'info');
+                    setTimeout(() => location.reload(), 1000);
+                }
+            }
+        };
+
+        // Initialize app when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+    </script>
+</body>
+</html>
