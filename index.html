@@ -41,6 +41,19 @@
     </script>
     
     <style>
+        /* Critical: Constrain chart containers to prevent infinite growth */
+        .chart-container {
+            position: relative;
+            height: 250px;
+            width: 100%;
+        }
+        
+        .chart-container-lg {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        
         /* Custom scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
@@ -65,10 +78,6 @@
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes pulse-ring {
-            0% { transform: scale(0.8); opacity: 0.5; }
-            100% { transform: scale(2); opacity: 0; }
         }
         
         .animate-slide-in {
@@ -101,18 +110,8 @@
         .sidebar-link.active::before {
             transform: scaleY(1);
         }
-        
-        /* Loading skeleton */
-        .skeleton {
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-        }
-        @keyframes loading {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
     </style>
+<base target="_blank">
 </head>
 <body class="bg-slate-50 text-slate-900 font-sans antialiased">
 
@@ -252,15 +251,19 @@
                         </div>
                     </div>
 
-                    <!-- Charts -->
+                    <!-- Charts - Fixed Height Containers -->
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
                             <h3 class="font-semibold text-slate-900 mb-4">Top Products by Value</h3>
-                            <canvas id="chart-top-products" height="250"></canvas>
+                            <div class="chart-container">
+                                <canvas id="chart-top-products"></canvas>
+                            </div>
                         </div>
                         <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
                             <h3 class="font-semibold text-slate-900 mb-4">Stock Status Distribution</h3>
-                            <canvas id="chart-status" height="250"></canvas>
+                            <div class="chart-container">
+                                <canvas id="chart-status"></canvas>
+                            </div>
                         </div>
                     </div>
 
@@ -404,11 +407,15 @@
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
                             <h3 class="font-semibold text-slate-900 mb-4">Inventory Trends (30 Days)</h3>
-                            <canvas id="chart-trends" height="300"></canvas>
+                            <div class="chart-container-lg">
+                                <canvas id="chart-trends"></canvas>
+                            </div>
                         </div>
                         <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
                             <h3 class="font-semibold text-slate-900 mb-4">Category Distribution</h3>
-                            <canvas id="chart-categories" height="300"></canvas>
+                            <div class="chart-container-lg">
+                                <canvas id="chart-categories"></canvas>
+                            </div>
                         </div>
                     </div>
 
@@ -436,6 +443,7 @@
         </main>
     </div>
 
+    <!-- Modals remain the same... -->
     <!-- Product Modal -->
     <div id="product-modal" class="fixed inset-0 z-50 hidden">
         <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="app.closeProductModal()"></div>
@@ -595,7 +603,7 @@
     </div>
 
     <script>
-        // Inventory Management Application
+        // Fixed Inventory Management Application
         const app = {
             data: {
                 products: [],
@@ -608,7 +616,12 @@
                 statusFilter: '',
                 editingProduct: null,
                 editingCategory: null,
-                charts: {}
+                charts: {},
+                chartsInitialized: {
+                    dashboard: false,
+                    analytics: false
+                },
+                resizeObserver: null
             },
 
             init() {
@@ -762,12 +775,48 @@
             },
 
             navigateTo(page) {
+                // Cleanup charts when leaving pages
+                if (page !== 'dashboard') {
+                    this.destroyDashboardCharts();
+                }
+                if (page !== 'analytics') {
+                    this.destroyAnalyticsCharts();
+                }
+                
                 document.querySelectorAll('.page-content').forEach(p => p.classList.add('hidden'));
                 document.getElementById(`page-${page}`).classList.remove('hidden');
                 
-                if (page === 'analytics') {
-                    setTimeout(() => this.renderAnalytics(), 100);
+                // Delay chart rendering slightly to ensure DOM is visible and sized
+                if (page === 'dashboard') {
+                    setTimeout(() => this.updateDashboardCharts(), 50);
+                } else if (page === 'analytics') {
+                    setTimeout(() => this.renderAnalytics(), 50);
                 }
+            },
+
+            // Chart Cleanup Functions
+            destroyDashboardCharts() {
+                if (this.data.charts.topProducts) {
+                    this.data.charts.topProducts.destroy();
+                    this.data.charts.topProducts = null;
+                }
+                if (this.data.charts.status) {
+                    this.data.charts.status.destroy();
+                    this.data.charts.status = null;
+                }
+                this.data.chartsInitialized.dashboard = false;
+            },
+
+            destroyAnalyticsCharts() {
+                if (this.data.charts.trends) {
+                    this.data.charts.trends.destroy();
+                    this.data.charts.trends = null;
+                }
+                if (this.data.charts.categories) {
+                    this.data.charts.categories.destroy();
+                    this.data.charts.categories = null;
+                }
+                this.data.chartsInitialized.analytics = false;
             },
 
             // Toast Notification System
@@ -1248,7 +1297,7 @@
                 
                 this.closeCategoryModal();
                 this.renderCategories();
-                this.renderProducts(); // Update category filters
+                this.renderProducts();
             },
 
             editCategory(id) {
@@ -1263,7 +1312,7 @@
                 }
             },
 
-            // Dashboard & Analytics
+            // Dashboard & Analytics - FIXED VERSION
             updateDashboard() {
                 const products = this.data.products;
                 const totalProducts = products.length;
@@ -1271,48 +1320,31 @@
                 const lowStock = products.filter(p => p.status === 'low').length;
                 const outStock = products.filter(p => p.status === 'out').length;
                 
-                // Animate numbers
                 this.animateNumber('stat-total-products', totalProducts);
                 this.animateNumber('stat-total-value', `$${totalValue.toLocaleString()}`);
                 this.animateNumber('stat-low-stock', lowStock, 'text-amber-600');
                 this.animateNumber('stat-out-stock', outStock, 'text-red-600');
-                
-                // Update charts
-                this.updateCharts();
             },
 
-            animateNumber(elementId, target, colorClass = null) {
-                const el = document.getElementById(elementId);
-                if (colorClass) el.className = `text-3xl font-bold mt-1 ${colorClass}`;
+            // Separate chart initialization to prevent continuous redraws
+            updateDashboardCharts() {
+                // Prevent re-initialization if already exists
+                if (this.data.chartsInitialized.dashboard) return;
                 
-                if (typeof target === 'string') {
-                    el.textContent = target;
-                    return;
-                }
+                // Ensure clean slate
+                this.destroyDashboardCharts();
                 
-                let current = 0;
-                const increment = target / 20;
-                const timer = setInterval(() => {
-                    current += increment;
-                    if (current >= target) {
-                        el.textContent = Math.floor(target);
-                        clearInterval(timer);
-                    } else {
-                        el.textContent = Math.floor(current);
-                    }
-                }, 25);
-            },
-
-            updateCharts() {
-                // Destroy existing charts
-                Object.values(this.data.charts).forEach(chart => chart.destroy());
+                const products = this.data.products;
+                if (products.length === 0) return;
                 
                 // Top Products Chart
-                const topProducts = [...this.data.products]
+                const topProducts = [...products]
                     .sort((a, b) => (b.quantity * b.unit_price) - (a.quantity * a.unit_price))
                     .slice(0, 6);
                 
-                const ctx1 = document.getElementById('chart-top-products').getContext('2d');
+                const ctx1 = document.getElementById('chart-top-products');
+                if (!ctx1) return;
+                
                 this.data.charts.topProducts = new Chart(ctx1, {
                     type: 'bar',
                     data: {
@@ -1337,12 +1369,14 @@
                 
                 // Status Distribution
                 const statusCounts = {
-                    active: this.data.products.filter(p => p.status === 'active').length,
-                    low: this.data.products.filter(p => p.status === 'low').length,
-                    out: this.data.products.filter(p => p.status === 'out').length
+                    active: products.filter(p => p.status === 'active').length,
+                    low: products.filter(p => p.status === 'low').length,
+                    out: products.filter(p => p.status === 'out').length
                 };
                 
-                const ctx2 = document.getElementById('chart-status').getContext('2d');
+                const ctx2 = document.getElementById('chart-status');
+                if (!ctx2) return;
+                
                 this.data.charts.status = new Chart(ctx2, {
                     type: 'doughnut',
                     data: {
@@ -1362,10 +1396,41 @@
                         }
                     }
                 });
+                
+                this.data.chartsInitialized.dashboard = true;
+            },
+
+            animateNumber(elementId, target, colorClass = null) {
+                const el = document.getElementById(elementId);
+                if (!el) return;
+                if (colorClass) el.className = `text-3xl font-bold mt-1 ${colorClass}`;
+                
+                if (typeof target === 'string') {
+                    el.textContent = target;
+                    return;
+                }
+                
+                let current = 0;
+                const increment = target / 20;
+                const timer = setInterval(() => {
+                    current += increment;
+                    if (current >= target) {
+                        el.textContent = Math.floor(target);
+                        clearInterval(timer);
+                    } else {
+                        el.textContent = Math.floor(current);
+                    }
+                }, 25);
             },
 
             renderAnalytics() {
-                // Trends Chart (mock data for last 30 days)
+                // Prevent re-initialization if already exists
+                if (this.data.chartsInitialized.analytics) return;
+                
+                // Clean up any existing charts first
+                this.destroyAnalyticsCharts();
+                
+                // Trends Chart
                 const days = Array.from({length: 30}, (_, i) => {
                     const d = new Date();
                     d.setDate(d.getDate() - (29 - i));
@@ -1374,8 +1439,10 @@
                 
                 const stockLevels = days.map(() => Math.floor(Math.random() * 50) + 100);
                 
-                const ctx1 = document.getElementById('chart-trends').getContext('2d');
-                new Chart(ctx1, {
+                const ctx1 = document.getElementById('chart-trends');
+                if (!ctx1) return;
+                
+                this.data.charts.trends = new Chart(ctx1, {
                     type: 'line',
                     data: {
                         labels: days.filter((_, i) => i % 5 === 0),
@@ -1407,8 +1474,10 @@
                     color: c.color
                 }));
                 
-                const ctx2 = document.getElementById('chart-categories').getContext('2d');
-                new Chart(ctx2, {
+                const ctx2 = document.getElementById('chart-categories');
+                if (!ctx2) return;
+                
+                this.data.charts.categories = new Chart(ctx2, {
                     type: 'pie',
                     data: {
                         labels: categoryData.map(c => c.name),
@@ -1426,25 +1495,29 @@
                     }
                 });
                 
+                this.data.chartsInitialized.analytics = true;
+                
                 // Turnover Table
                 const tbody = document.getElementById('turnover-table');
-                tbody.innerHTML = '';
-                this.data.products.slice(0, 10).forEach(p => {
-                    const sold = Math.floor(Math.random() * p.quantity);
-                    const turnover = ((sold / p.quantity) * 100).toFixed(1);
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-slate-50">
-                            <td class="px-5 py-3 text-sm text-slate-900">${p.name}</td>
-                            <td class="px-5 py-3 text-sm text-slate-900 text-right">${sold}</td>
-                            <td class="px-5 py-3 text-sm text-slate-900 text-right">${p.quantity}</td>
-                            <td class="px-5 py-3 text-sm text-right">
-                                <span class="inline-flex px-2 py-1 rounded-full text-xs font-medium ${turnover > 50 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}">
-                                    ${turnover}%
-                                </span>
-                            </td>
-                        </tr>
-                    `;
-                });
+                if (tbody) {
+                    tbody.innerHTML = '';
+                    this.data.products.slice(0, 10).forEach(p => {
+                        const sold = Math.floor(Math.random() * p.quantity);
+                        const turnover = ((sold / p.quantity) * 100).toFixed(1);
+                        tbody.innerHTML += `
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-5 py-3 text-sm text-slate-900">${p.name}</td>
+                                <td class="px-5 py-3 text-sm text-slate-900 text-right">${sold}</td>
+                                <td class="px-5 py-3 text-sm text-slate-900 text-right">${p.quantity}</td>
+                                <td class="px-5 py-3 text-sm text-right">
+                                    <span class="inline-flex px-2 py-1 rounded-full text-xs font-medium ${turnover > 50 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}">
+                                        ${turnover}%
+                                    </span>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
             },
 
             logout() {
